@@ -9,7 +9,7 @@ import { Input } from '../../../shared/components/Input/Input'
 import { Toggle } from '../../../shared/components/Toggle/Toggle'
 
 const transactionSchema = z.object({
-  amount: z.coerce.number().min(0.01, 'Amount must be greater than 0'),
+  amount: z.coerce.number().min(0.0001, 'Amount must be greater than 0'),
   description: z.string().min(1, 'Description is required').max(200, 'Description must be less than 200 characters'),
 })
 
@@ -40,7 +40,7 @@ export function TransactionForm() {
     // Positive amount = CREDIT, Negative amount = DEBIT
     const amount = transactionType === 'DEBIT' ? -Math.abs(data.amount) : Math.abs(data.amount)
     
-    createTransaction.mutate(
+    createTransaction(
       {
         walletId: wallet.id,
         data: {
@@ -76,9 +76,8 @@ export function TransactionForm() {
         <Input
           label="Amount"
           type="number"
-          step="0.01"
-          min="0.01"
-          placeholder="0.00"
+          step="any"
+          placeholder="0.0000"
           {...register('amount')}
           error={errors.amount?.message}
         />

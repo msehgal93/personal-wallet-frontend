@@ -1,13 +1,12 @@
-import { useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { useLocalStorage } from '../shared/hooks/useLocalStorage'
 import { useTransactions } from '../features/transactions/hooks/useTransactions'
+import { useTransactionsMeta } from '../features/transactions/hooks/useTransactionsMeta'
 import { useTransactionExport } from '../features/transactions/hooks/useTransactionExport'
 import { TransactionTable } from '../features/transactions/components/TransactionTable'
 import { Pagination } from '../features/transactions/components/Pagination'
 import { SortControls } from '../features/transactions/components/SortControls'
 import { Button } from '../shared/components/Button/Button'
-import { LoadingSpinner } from '../shared/components/LoadingSpinner/LoadingSpinner'
 import type { SortBy, SortOrder } from '../shared/types/common.types'
 
 const WALLET_ID_KEY = 'walletId'
@@ -22,7 +21,12 @@ const TransactionsPage = () => {
   const sortBy = (searchParams.get('sortBy') || 'date') as SortBy
   const sortOrder = (searchParams.get('sortOrder') || 'desc') as SortOrder
 
-  const { data, isLoading, error } = useTransactions(walletId, page, DEFAULT_LIMIT, sortBy, sortOrder)
+  const {
+    data: transactionsResponse,
+    isLoading,
+    error,
+  } = useTransactions(walletId, page, DEFAULT_LIMIT, sortBy, sortOrder)
+  const { data: metaData } = useTransactionsMeta(walletId, sortBy, sortOrder)
   const { exportToCSV, isLoading: isExporting } = useTransactionExport(walletId)
 
   const handlePageChange = (newPage: number) => {
@@ -59,9 +63,9 @@ const TransactionsPage = () => {
     )
   }
 
-  const transactions = data?.data || []
-  const totalItems = data?.pagination?.limit ? Math.ceil((data.pagination.skip + transactions.length) / DEFAULT_LIMIT) : 1
-  const totalPages = Math.max(1, totalItems)
+  const transactions = transactionsResponse?.data ?? []
+  const totalCount = metaData?.pagination?.count
+  const totalPages = totalCount ? Math.max(1, Math.ceil(totalCount / DEFAULT_LIMIT)) : 1
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -98,7 +102,7 @@ const TransactionsPage = () => {
           
           <TransactionTable transactions={transactions} isLoading={isLoading} />
           
-          {!isLoading && transactions.length > 0 && (
+          {!isLoading && transactions.length > 0 && totalPages > 1 && (
             <Pagination
               currentPage={page}
               totalPages={totalPages}

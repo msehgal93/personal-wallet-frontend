@@ -35,10 +35,17 @@ export interface TransactionsQueryParams {
   sortOrder?: 'asc' | 'desc'
 }
 
+export interface TransactionsPagination {
+  skip: number
+  limit: number
+  /**
+   * Total number of records for the wallet.
+   * Present when the backend omits skip/limit (pagination metadata response).
+   */
+  count?: number
+}
+
 export interface TransactionsResponse {
   data: Transaction[]
-  pagination: {
-    skip: number
-    limit: number
-  }
+  pagination?: TransactionsPagination
 }
