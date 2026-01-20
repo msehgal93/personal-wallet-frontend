@@ -33,3 +33,43 @@ Create high level specifications for Frontend of a Wallet Management Service bas
 - Paginated table: a table of all the transactions available for the wallet, should support Pagination of data
 - Ability to sort transactions by date and amount
 - Export CSV file of all transactions available
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Node.js 20+ 
+- npm or yarn
+
+### Installation
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Set up environment variables:
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set your API base URL:
+```
+VITE_API_BASE_URL=http://localhost:3000/api/v1
+```
+
+3. Start development server:
+```bash
+npm run dev
+```
+
+The app will be available at `http://localhost:5173`
+
+### Build for Production
+
+```bash
+npm run build
+```
+
+The built files will be in the `dist` directory, ready for static hosting.
