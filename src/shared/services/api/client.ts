@@ -1,18 +1,70 @@
-import axios, { AxiosInstance, AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios'
+import axios, {
+  AxiosInstance,
+  AxiosError,
+  AxiosRequestConfig,
+  InternalAxiosRequestConfig,
+  isAxiosError,
+} from 'axios'
 import type { ApiError, ApiRequestConfig } from './types'
 
 const DEFAULT_TIMEOUT = 10000 // 10 seconds
 const DEFAULT_RETRIES = 3
 const DEFAULT_RETRY_DELAY = 1000 // 1 second
 
-// Base URL from environment or default
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'
+const DEFAULT_API_BASE_URL = '/api/v1'
+const ALLOWED_BACKEND_HOSTS = new Set(['personal-wallet-backend.vercel.app', 'localhost', '127.0.0.1'])
+
+const resolveApiBaseUrl = (): string => {
+  const envBaseUrl = import.meta.env.VITE_API_BASE_URL
+
+  if (!envBaseUrl) {
+    return DEFAULT_API_BASE_URL
+  }
+
+  if (envBaseUrl.startsWith('/')) {
+    return envBaseUrl === '/' ? DEFAULT_API_BASE_URL : envBaseUrl.replace(/\/$/, '') || DEFAULT_API_BASE_URL
+  }
+
+  try {
+    const parsed = new URL(envBaseUrl)
+
+    if (ALLOWED_BACKEND_HOSTS.has(parsed.hostname)) {
+      const normalizedPath = parsed.pathname.endsWith('/') && parsed.pathname !== '/'
+        ? parsed.pathname.slice(0, -1)
+        : parsed.pathname
+      return `${parsed.origin}${normalizedPath}`
+    }
+
+    console.warn(
+      `[api] Provided VITE_API_BASE_URL host "${parsed.hostname}" is not whitelisted. Falling back to ${DEFAULT_API_BASE_URL}.`
+    )
+  } catch (error) {
+    console.warn('[api] Invalid VITE_API_BASE_URL. Falling back to default.', error)
+  }
+
+  return DEFAULT_API_BASE_URL
+}
+
+// Base URL from environment or default to same-origin proxy
+const API_BASE_URL = resolveApiBaseUrl()
 
 /**
  * Creates an API error from various error types
  */
+function extractErrorMessage(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== 'object') {
+    return undefined
+  }
+
+  if ('message' in payload && typeof (payload as { message?: unknown }).message === 'string') {
+    return (payload as { message?: string }).message
+  }
+
+  return undefined
+}
+
 function createApiError(error: unknown): ApiError {
-  if (axios.isAxiosError(error)) {
+  if (isAxiosError(error)) {
     const axiosError = error as AxiosError
 
     // Network error (no response)
@@ -33,12 +85,14 @@ function createApiError(error: unknown): ApiError {
 
     // HTTP error (4xx, 5xx)
     const status = axiosError.response.status
+    const responseData = axiosError.response.data
+    const responseMessage = extractErrorMessage(responseData)
     const isClientError = status >= 400 && status < 500
     const isServerError = status >= 500
 
     return {
       code: isClientError ? 'CLIENT_ERROR' : 'SERVER_ERROR',
-      message: axiosError.response.data?.message || axiosError.message || 'An error occurred',
+      message: responseMessage || axiosError.message || 'An error occurred',
       status,
       retryable: isServerError, // Retry only server errors
     }
@@ -159,13 +213,14 @@ export const api = {
     config?: AxiosRequestConfig & ApiRequestConfig
   ): Promise<T> {
     const { retries, retryDelay, timeout, ...axiosConfig } = config || {}
-    
-    if (timeout) {
-      axiosConfig.timeout = timeout
+
+    const requestConfig: AxiosRequestConfig = {
+      ...axiosConfig,
+      ...(timeout ? { timeout } : {}),
     }
 
     return retryRequest(
-      () => apiClient.get<T>(url, axiosConfig).then((res) => res.data),
+      () => apiClient.get<T>(url, requestConfig).then((res) => res.data),
       { retries, retryDelay }
     )
   },
@@ -179,13 +234,14 @@ export const api = {
     config?: AxiosRequestConfig & ApiRequestConfig
   ): Promise<T> {
     const { retries, retryDelay, timeout, ...axiosConfig } = config || {}
-    
-    if (timeout) {
-      axiosConfig.timeout = timeout
+
+    const requestConfig: AxiosRequestConfig = {
+      ...axiosConfig,
+      ...(timeout ? { timeout } : {}),
     }
 
     return retryRequest(
-      () => apiClient.post<T>(url, data, axiosConfig).then((res) => res.data),
+      () => apiClient.post<T>(url, data, requestConfig).then((res) => res.data),
       { retries, retryDelay }
     )
   },
@@ -199,13 +255,14 @@ export const api = {
     config?: AxiosRequestConfig & ApiRequestConfig
   ): Promise<T> {
     const { retries, retryDelay, timeout, ...axiosConfig } = config || {}
-    
-    if (timeout) {
-      axiosConfig.timeout = timeout
+
+    const requestConfig: AxiosRequestConfig = {
+      ...axiosConfig,
+      ...(timeout ? { timeout } : {}),
     }
 
     return retryRequest(
-      () => apiClient.put<T>(url, data, axiosConfig).then((res) => res.data),
+      () => apiClient.put<T>(url, data, requestConfig).then((res) => res.data),
       { retries, retryDelay }
     )
   },
@@ -218,13 +275,14 @@ export const api = {
     config?: AxiosRequestConfig & ApiRequestConfig
   ): Promise<T> {
     const { retries, retryDelay, timeout, ...axiosConfig } = config || {}
-    
-    if (timeout) {
-      axiosConfig.timeout = timeout
+
+    const requestConfig: AxiosRequestConfig = {
+      ...axiosConfig,
+      ...(timeout ? { timeout } : {}),
     }
 
     return retryRequest(
-      () => apiClient.delete<T>(url, axiosConfig).then((res) => res.data),
+      () => apiClient.delete<T>(url, requestConfig).then((res) => res.data),
       { retries, retryDelay }
     )
   },
